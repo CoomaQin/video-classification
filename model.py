@@ -16,7 +16,6 @@ class VideoClassificationLightningModule(pytorch_lightning.LightningModule):
   def training_step(self, batch, batch_idx):
       # The model expects a video tensor of shape (B, C, T, H, W), which is the
       # format provided by the dataset
-    #   print(batch["video"].shape)
       y_hat = self.model(batch["video"])
 
       # Compute cross entropy loss, loss.backwards will be called behind the scenes
@@ -39,7 +38,7 @@ class VideoClassificationLightningModule(pytorch_lightning.LightningModule):
       Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
       usually useful for training video models.
       """
-      return torch.optim.Adam(self.parameters(), lr=1e-1)
+      return torch.optim.Adam(self.parameters(), lr=1e-4)
 
 
 def make_kinetics_resnet():

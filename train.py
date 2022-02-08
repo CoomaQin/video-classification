@@ -17,19 +17,13 @@ from pytorchvideo.transforms import (
     Normalize,
     RemoveKey,
     ShortSideScale,
+    RandomShortSideScale,
     UniformTemporalSubsample
 )
 import torch
 from model import VideoClassificationLightningModule
 
 
-side_size = 256
-mean = [0.45, 0.45, 0.45]
-std = [0.225, 0.225, 0.225]
-crop_size = 640
-num_frames = 32
-sampling_rate = 2
-frames_per_second = 30
 alpha = 4
 
 
@@ -63,12 +57,13 @@ class BridgeStrikeDataModule(pytorch_lightning.LightningDataModule):
         self._CLIP_DURATION = 1  # Duration of sampled clip for each video
         self._BATCH_SIZE = 1
         self._NUM_WORKERS = 0  # Number of parallel processes fetching data
+        self._SAMPLE_RATE = 16
 
-    # def train_dataloader(self):
-    #     """
-    #     Create the Kinetics train partition from the list of video labels
-    #     in {self._DATA_PATH}/train
-    #     """
+    def train_dataloader(self):
+        """
+        Create the Kinetics train partition from the list of video labels
+        in {self._DATA_PATH}/train
+        """
     #     train_dataset = pytorchvideo.data.Kinetics(
     #         data_path=os.path.join(self._DATA_PATH, "train"),
     #         clip_sampler=pytorchvideo.data.make_clip_sampler(
@@ -104,17 +99,16 @@ class BridgeStrikeDataModule(pytorch_lightning.LightningDataModule):
           in {self._DATA_PATH}/train.csv. Add transform that subsamples and
           normalizes the video before applying the scale, crop and flip augmentations.
           """
-        train_transform = ApplyTransformToKey(
+        transform = ApplyTransformToKey(
             key="video",
             transform=Compose(
                 [
-                    UniformTemporalSubsample(num_frames),
-                    Lambda(lambda x: x/255.0),
-                    NormalizeVideo(mean, std),
-                    CenterCropVideo(crop_size),
-                    ShortSideScale(
-                        size=side_size
-                    )
+                    UniformTemporalSubsample(self._SAMPLE_RATE),
+                    Lambda(lambda x: x / 255.0),
+                    Normalize((0.45, 0.45, 0.45), (0.225, 0.225, 0.225)),
+                    RandomShortSideScale(min_size=640, max_size=720),
+                    RandomCrop(320),
+                    RandomHorizontalFlip(p=0.5),
                 ]
             ),
         )
@@ -122,7 +116,13 @@ class BridgeStrikeDataModule(pytorch_lightning.LightningDataModule):
             data_path=os.path.join(self._DATA_PATH, "train.csv"),
             clip_sampler=pytorchvideo.data.make_clip_sampler(
                 "random", self._CLIP_DURATION),
-            transform=train_transform
+            transform=transform
+        )
+        train_dataset = pytorchvideo.data.Kinetics(
+            data_path=os.path.join(self._DATA_PATH, "val.csv"),
+            clip_sampler=pytorchvideo.data.make_clip_sampler(
+                "random", self._CLIP_DURATION),
+            transform=transform
         )
         return torch.utils.data.DataLoader(
             train_dataset,
@@ -137,5 +137,5 @@ if __name__ == "__main__":
     # dl = data_module.train_dataloader()
     # print(dl.dataset._labeled_videos[0])
     # print(dl.dataset.__next__()["video"].shape)
-    trainer = pytorch_lightning.Trainer(gpus=1, max_epochs=25)
+    trainer = pytorch_lightning.Trainer(gpus=1, max_epochs=300)
     trainer.fit(classification_module, data_module)
