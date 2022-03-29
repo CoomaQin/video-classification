@@ -15,7 +15,7 @@ def create_video_folders(data_root: str, dataset: pd.DataFrame) -> None:
                 os.makedirs(outpath)
 
 
-def extract_clips(data_root: str, dataset: pd.DataFrame, name="car") -> None:
+def extract_clips(data_root: str, dataset: pd.DataFrame, name="mt") -> None:
     idx = 0
     while idx < len(dataset):
         outpath = os.path.join(data_root, dataset["label"][idx], f'{name}_{idx}.mp4')
@@ -23,10 +23,11 @@ def extract_clips(data_root: str, dataset: pd.DataFrame, name="car") -> None:
         if os.path.exists(outpath):
             idx += 1
             continue
-        fm = "%M:%S.%f" if len(dataset["time_start"][idx].split(".")) > 1 else "%H:%M:%S"
-        start = datetime.datetime.strptime(dataset["time_start"][idx], fm)
-        duration = datetime.datetime.strptime(dataset["duration"][idx], fm)
-        delta = datetime.timedelta(seconds=max(1, duration.second - 4))
+        fmt = "%S.%f"
+        fmss = "%M:%S.%f"
+        start = datetime.datetime.strptime(str(dataset["time_start"][idx]), fmss)
+        duration = datetime.datetime.strptime(str(dataset["duration"][idx]), fmt)
+        delta = datetime.timedelta(seconds=0) # datetime.timedelta(seconds=max(1, duration.second - 4))
         start += delta
         duration -= delta
         command = ['ffmpeg',
